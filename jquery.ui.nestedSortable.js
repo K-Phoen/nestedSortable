@@ -279,7 +279,7 @@
 				"item_id": 'root',
 				"parent_id": 'none',
 				"depth": sDepth,
-				"left": '1',
+				"left": 1,
 				"right": ($('li', this.element).length + 1) * 2
 			});
 
