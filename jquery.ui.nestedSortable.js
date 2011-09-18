@@ -19,7 +19,8 @@
       errorClass: 'ui-nestedSortable-error',
       listType: 'ol',
       maxLevels: 0,
-      revertOnError: 1
+      revertOnError: 1,
+      getItemId: undefined // leave undefined to use the "_getItemId" method
     },
 
     _create: function() {
@@ -243,28 +244,32 @@
     toHierarchy: function(o) {
       o = o || {};
       var sDepth = o.startDepthCount || 0,
-          ret = [];
+          ret = [],
+          self = this;
 
       $(this.element).children('li').each(function() {
-        var level = _recursiveItems($(this));
-        ret.push(level);
+        ret.push(_recursiveItems($(this)));
       });
 
       return ret;
 
       function _recursiveItems(li) {
-        var id = ($(li).attr(o.attribute || 'id') || '').match(o.expression || (/(.+)[-=_](.+)/));
-        if (id) {
-          var item = {'id' : id[2]};
-          if ($(li).children(o.listType).children('li').length > 0) {
-            item.children = [];
-            $(li).children(o.listType).children('li').each(function() {
-              var level = _recursiveItems($(this));
-              item.children.push(level);
-            });
-          }
-          return item;
+        var id = self._getItemId(li);
+
+        if (!id) {
+          return;
         }
+
+        var item = {'id' : id};
+        if ($(li).children(o.listType).children('li').length > 0) {
+          item.children = [];
+
+          $(li).children(o.listType).children('li').each(function() {
+            item.children.push(_recursiveItems($(this)));
+          });
+        }
+
+        return item;
       }
     },
 
@@ -272,6 +277,7 @@
       o = o || {};
       var sDepth = o.startDepthCount || 0,
           ret = [],
+          self = this,
           left = 2;
 
       ret.push({
@@ -291,40 +297,49 @@
       return ret;
 
       function _recursiveArray(item, depth, left) {
-
         var right = left + 1,
             id,
             pid;
 
         if ($(item).children(o.listType).children('li').length > 0) {
-          depth++;
-
           $(item).children(o.listType).children('li').each(function() {
-            right = _recursiveArray($(this), depth, right);
+            right = _recursiveArray($(this), depth + 1, right);
           });
-
-          depth--;
         }
 
-        id = ($(item).attr(o.attribute || 'id')).match(o.expression || (/(.+)[-=_](.+)/));
+        id = self._getItemId(item);
 
         if (depth === sDepth + 1) {
           pid = 'root';
         } else {
-          var parentItem = ($(item).parent(o.listType)
-            .parent('li')
-            .attr(o.attribute || 'id'))
-            .match(o.expression || (/(.+)[-=_](.+)/));
-          pid = parentItem[2];
+          pid = self._getItemId($(item).parent(o.listType).parent('li'));
         }
 
         if (id) {
-            ret.push({'item_id': id[2], 'parent_id': pid, 'depth': depth, 'left': left, 'right': right});
+          ret.push({'item_id': id, 'parent_id': pid, 'depth': depth, 'left': left, 'right': right});
         }
 
         left = right + 1;
+
         return left;
       }
+    },
+
+    _getItemId: function(item) {
+      if (this.options.getItemId !== undefined) {
+        return this.options.getItemId(item);
+      }
+
+      var html_id = $(item).attr('id'),
+          dn;
+
+      if (!html_id) {
+        return undefined;
+      }
+
+      dn = html_id.match(/(.+)[-=_](.+)/);
+
+      return dn.length > 2 ? dn[2] : html_id;
     },
 
     _clearEmpty: function(item) {
